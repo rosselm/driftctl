@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -23,7 +24,12 @@ type EC2AmiSupplier struct {
 }
 
 func NewEC2AmiSupplier(runner *parallel.ParallelRunner, client ec2iface.EC2API) *EC2AmiSupplier {
-	return &EC2AmiSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewEC2AmiDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &EC2AmiSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewEC2AmiDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s EC2AmiSupplier) Resources() ([]resource.Resource, error) {
@@ -34,7 +40,7 @@ func (s EC2AmiSupplier) Resources() ([]resource.Resource, error) {
 	}
 	response, err := s.client.DescribeImages(input)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, resourceaws.AwsAmiResourceType, resourceaws.AwsAmiResourceType)
 	}
 	results := make([]cty.Value, 0)
 	if len(response.Images) > 0 {

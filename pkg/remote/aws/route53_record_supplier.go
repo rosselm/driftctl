@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	awsdeserializer "github.com/cloudskiff/driftctl/pkg/resource/aws/deserializer"
 
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
@@ -15,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
-	"github.com/sirupsen/logrus"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -27,20 +27,24 @@ type Route53RecordSupplier struct {
 }
 
 func NewRoute53RecordSupplier(runner *parallel.ParallelRunner, client route53iface.Route53API) *Route53RecordSupplier {
-	return &Route53RecordSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewRoute53RecordDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &Route53RecordSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewRoute53RecordDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s Route53RecordSupplier) Resources() ([]resource.Resource, error) {
 
 	zones, err := s.listZones()
 	if err != nil {
-		logrus.Error(err)
-		return nil, err
+		return nil, NewBaseListError(err, resourceaws.AwsRoute53RecordResourceType, resourceaws.AwsRoute53ZoneResourceType)
 	}
 
 	for _, zone := range zones {
 		if err := s.listRecordsForZone(zone[0], zone[1]); err != nil {
-			return nil, err
+			return nil, NewBaseListError(err, resourceaws.AwsRoute53RecordResourceType, resourceaws.AwsRoute53RecordResourceType)
 		}
 	}
 

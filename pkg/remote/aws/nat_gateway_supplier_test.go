@@ -4,17 +4,21 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cloudskiff/driftctl/mocks"
 	"github.com/cloudskiff/driftctl/pkg/parallel"
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
+	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
 	awsdeserializer "github.com/cloudskiff/driftctl/pkg/resource/aws/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/terraform"
 	"github.com/cloudskiff/driftctl/test"
 	"github.com/cloudskiff/driftctl/test/goldenfile"
 	mocks2 "github.com/cloudskiff/driftctl/test/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -57,6 +61,18 @@ func TestNatGatewaySupplier_Resources(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			test:    "cannot list gateway",
+			dirName: "nat_gateway_empty",
+			mocks: func(client *mocks.FakeEC2) {
+				client.On("DescribeNatGatewaysPages",
+					&ec2.DescribeNatGatewaysInput{},
+					mock.MatchedBy(func(callback func(res *ec2.DescribeNatGatewaysOutput, lastPage bool) bool) bool {
+						return true
+					})).Return(awserr.NewRequestFailure(nil, 403, ""))
+			},
+			err: NewBaseListError(awserr.NewRequestFailure(nil, 403, ""), resourceaws.AwsNatGatewayResourceType, resourceaws.AwsNatGatewayResourceType),
+		},
 	}
 	for _, c := range cases {
 		shouldUpdate := c.dirName == *goldenfile.Update
@@ -82,9 +98,7 @@ func TestNatGatewaySupplier_Resources(t *testing.T) {
 				terraform.NewParallelResourceReader(parallel.NewParallelRunner(context.TODO(), 10)),
 			}
 			got, err := s.Resources()
-			if c.err != err {
-				tt.Errorf("Expected error %+v got %+v", c.err, err)
-			}
+			assert.Equal(tt, c.err, err)
 
 			mock.AssertExpectationsForObjects(tt)
 			deserializers := []deserializer.CTYDeserializer{natGatewaydeserializer}

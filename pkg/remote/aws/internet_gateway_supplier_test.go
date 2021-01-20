@@ -4,6 +4,10 @@ import (
 	"context"
 	"testing"
 
+	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	awssdk "github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -16,6 +20,7 @@ import (
 	"github.com/cloudskiff/driftctl/test"
 	"github.com/cloudskiff/driftctl/test/goldenfile"
 	mocks2 "github.com/cloudskiff/driftctl/test/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -61,6 +66,18 @@ func TestInternetGatewaySupplier_Resources(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			test:    "cannot list internet gateways",
+			dirName: "internet_gateway_empty",
+			mocks: func(client *mocks.FakeEC2) {
+				client.On("DescribeInternetGatewaysPages",
+					&ec2.DescribeInternetGatewaysInput{},
+					mock.MatchedBy(func(callback func(res *ec2.DescribeInternetGatewaysOutput, lastPage bool) bool) bool {
+						return true
+					})).Return(awserr.NewRequestFailure(nil, 403, ""))
+			},
+			err: NewBaseListError(awserr.NewRequestFailure(nil, 403, ""), resourceaws.AwsInternetGatewayResourceType, resourceaws.AwsInternetGatewayResourceType),
+		},
 	}
 	for _, c := range cases {
 		shouldUpdate := c.dirName == *goldenfile.Update
@@ -86,9 +103,7 @@ func TestInternetGatewaySupplier_Resources(t *testing.T) {
 				terraform.NewParallelResourceReader(parallel.NewParallelRunner(context.TODO(), 10)),
 			}
 			got, err := s.Resources()
-			if c.err != err {
-				tt.Errorf("Expected error %+v got %+v", c.err, err)
-			}
+			assert.Equal(tt, c.err, err)
 
 			mock.AssertExpectationsForObjects(tt)
 			deserializers := []deserializer.CTYDeserializer{internetGatewayDeserializer}

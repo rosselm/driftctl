@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -22,11 +23,16 @@ type IamUserSupplier struct {
 }
 
 func NewIamUserSupplier(runner *parallel.ParallelRunner, client iamiface.IAMAPI) *IamUserSupplier {
-	return &IamUserSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewIamUserDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &IamUserSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewIamUserDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s IamUserSupplier) Resources() ([]resource.Resource, error) {
-	users, err := listIamUsers(s.client)
+	users, err := listIamUsers(s.client, resourceaws.AwsIamUserResourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +67,7 @@ func (s IamUserSupplier) readRes(user *iam.User) (cty.Value, error) {
 	return *res, nil
 }
 
-func listIamUsers(client iamiface.IAMAPI) ([]*iam.User, error) {
+func listIamUsers(client iamiface.IAMAPI, supplierType string) ([]*iam.User, error) {
 	var resources []*iam.User
 	input := &iam.ListUsersInput{}
 	err := client.ListUsersPages(input, func(res *iam.ListUsersOutput, lastPage bool) bool {
@@ -69,7 +75,7 @@ func listIamUsers(client iamiface.IAMAPI) ([]*iam.User, error) {
 		return !lastPage
 	})
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, supplierType, resourceaws.AwsIamUserResourceType)
 	}
 	return resources, nil
 }

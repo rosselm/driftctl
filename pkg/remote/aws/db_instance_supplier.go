@@ -22,7 +22,12 @@ type DBInstanceSupplier struct {
 }
 
 func NewDBInstanceSupplier(runner *parallel.ParallelRunner, client rdsiface.RDSAPI) *DBInstanceSupplier {
-	return &DBInstanceSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewDBInstanceDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &DBInstanceSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewDBInstanceDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func listAwsDBInstances(client rdsiface.RDSAPI) ([]*rds.DBInstance, error) {
@@ -43,8 +48,7 @@ func (s DBInstanceSupplier) Resources() ([]resource.Resource, error) {
 	resourceList, err := listAwsDBInstances(s.client)
 
 	if err != nil {
-		logrus.Error(err)
-		return nil, err
+		return nil, NewBaseListError(err, resourceaws.AwsDbInstanceResourceType, resourceaws.AwsDbInstanceResourceType)
 	}
 
 	for _, res := range resourceList {

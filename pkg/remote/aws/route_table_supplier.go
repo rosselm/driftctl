@@ -38,9 +38,8 @@ func NewRouteTableSupplier(runner *parallel.ParallelRunner, client ec2iface.EC2A
 
 func (s RouteTableSupplier) Resources() ([]resource.Resource, error) {
 
-	retrievedRouteTables, err := listRouteTables(s.client)
+	retrievedRouteTables, err := listRouteTables(s.client, aws.AwsRouteTableResourceType)
 	if err != nil {
-		logrus.Error(err)
 		return nil, err
 	}
 
@@ -115,7 +114,7 @@ func (s RouteTableSupplier) readRouteTable(routeTable ec2.RouteTable, isMain boo
 	return *val, nil
 }
 
-func listRouteTables(client ec2iface.EC2API) ([]*ec2.RouteTable, error) {
+func listRouteTables(client ec2iface.EC2API, supplierType string) ([]*ec2.RouteTable, error) {
 	var routeTables []*ec2.RouteTable
 	input := ec2.DescribeRouteTablesInput{}
 	err := client.DescribeRouteTablesPages(&input,
@@ -126,7 +125,7 @@ func listRouteTables(client ec2iface.EC2API) ([]*ec2.RouteTable, error) {
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, supplierType, aws.AwsRouteTableResourceType)
 	}
 
 	return routeTables, nil

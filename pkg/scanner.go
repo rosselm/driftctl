@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	dctlerror "github.com/cloudskiff/driftctl/pkg/error"
+
 	"github.com/cloudskiff/driftctl/pkg/parallel"
 	"github.com/sirupsen/logrus"
 
@@ -31,6 +33,9 @@ func (s *Scanner) Resources() ([]resource.Resource, error) {
 		s.runner.Run(func() (interface{}, error) {
 			res, err := supplier.Resources()
 			if err != nil {
+				if dctlerror.HandleListAwsError(err, s.alerter) {
+					return []resource.Resource{}, nil
+				}
 				return nil, err
 			}
 			for _, resource := range res {

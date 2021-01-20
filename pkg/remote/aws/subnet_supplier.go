@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource/aws"
 	awsdeserializer "github.com/cloudskiff/driftctl/pkg/resource/aws/deserializer"
@@ -53,8 +54,7 @@ func (s SubnetSupplier) Resources() ([]resource.Resource, error) {
 	)
 
 	if err != nil {
-		logrus.Error(err)
-		return nil, err
+		return nil, NewBaseListError(err, aws.AwsSubnetResourceType, aws.AwsSubnetResourceType)
 	}
 
 	for _, item := range subnets {

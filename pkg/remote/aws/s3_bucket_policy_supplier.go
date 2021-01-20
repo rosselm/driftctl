@@ -3,6 +3,7 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	"github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -19,7 +20,12 @@ type S3BucketPolicySupplier struct {
 }
 
 func NewS3BucketPolicySupplier(runner *parallel.ParallelRunner, factory AwsClientFactoryInterface) *S3BucketPolicySupplier {
-	return &S3BucketPolicySupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewS3BucketPolicyDeserializer(), factory, terraform.NewParallelResourceReader(runner)}
+	return &S3BucketPolicySupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewS3BucketPolicyDeserializer(),
+		factory,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s *S3BucketPolicySupplier) Resources() ([]resource.Resource, error) {
@@ -28,7 +34,7 @@ func (s *S3BucketPolicySupplier) Resources() ([]resource.Resource, error) {
 	client := s.factory.GetS3Client(nil)
 	response, err := client.ListBuckets(input)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, aws.AwsS3BucketPolicyResourceType, aws.AwsS3BucketResourceType)
 	}
 
 	for _, bucket := range response.Buckets {

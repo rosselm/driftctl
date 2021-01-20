@@ -4,7 +4,12 @@ import (
 	"context"
 	"testing"
 
+	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	awsdeserializer "github.com/cloudskiff/driftctl/pkg/resource/aws/deserializer"
 
 	"github.com/cloudskiff/driftctl/test/goldenfile"
@@ -14,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 
 	mocks2 "github.com/cloudskiff/driftctl/test/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/cloudskiff/driftctl/mocks"
@@ -64,6 +70,14 @@ func TestIamUserSupplier_Resources(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			test:    "cannot list iam user",
+			dirName: "iam_user_empty",
+			mocks: func(client *mocks.FakeIAM) {
+				client.On("ListUsersPages", mock.Anything, mock.Anything).Return(awserr.NewRequestFailure(nil, 403, ""))
+			},
+			err: NewBaseListError(awserr.NewRequestFailure(nil, 403, ""), resourceaws.AwsIamUserResourceType, resourceaws.AwsIamUserResourceType),
+		},
 	}
 	for _, c := range cases {
 		shouldUpdate := c.dirName == *goldenfile.Update
@@ -90,9 +104,7 @@ func TestIamUserSupplier_Resources(t *testing.T) {
 				terraform.NewParallelResourceReader(parallel.NewParallelRunner(context.TODO(), 10)),
 			}
 			got, err := s.Resources()
-			if c.err != err {
-				t.Errorf("Expected error %+v got %+v", c.err, err)
-			}
+			assert.Equal(tt, c.err, err)
 
 			mock.AssertExpectationsForObjects(tt)
 			test.CtyTestDiff(got, c.dirName, provider, deserializer, shouldUpdate, t)

@@ -33,7 +33,7 @@ func (s NatGatewaySupplier) Resources() ([]resource.Resource, error) {
 
 	retrievedNatGateways, err := listNatGateways(s.client)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, aws.AwsNatGatewayResourceType, aws.AwsNatGatewayResourceType)
 	}
 
 	for _, gateway := range retrievedNatGateways {

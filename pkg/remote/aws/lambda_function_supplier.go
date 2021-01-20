@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -22,13 +23,18 @@ type LambdaFunctionSupplier struct {
 }
 
 func NewLambdaFunctionSupplier(runner *parallel.ParallelRunner, client lambdaiface.LambdaAPI) *LambdaFunctionSupplier {
-	return &LambdaFunctionSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewLambdaFunctionDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &LambdaFunctionSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewLambdaFunctionDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s LambdaFunctionSupplier) Resources() ([]resource.Resource, error) {
 	functions, err := listLambdaFunctions(s.client)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, resourceaws.AwsLambdaFunctionResourceType, resourceaws.AwsLambdaFunctionResourceType)
 	}
 	results := make([]cty.Value, 0)
 	if len(functions) > 0 {

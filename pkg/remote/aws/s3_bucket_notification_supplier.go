@@ -1,8 +1,12 @@
 package aws
 
 import (
+	"reflect"
+
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+	"github.com/sirupsen/logrus"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	"github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -19,7 +23,12 @@ type S3BucketNotificationSupplier struct {
 }
 
 func NewS3BucketNotificationSupplier(runner *parallel.ParallelRunner, factory AwsClientFactoryInterface) *S3BucketNotificationSupplier {
-	return &S3BucketNotificationSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewS3BucketNotificationDeserializer(), factory, terraform.NewParallelResourceReader(runner)}
+	return &S3BucketNotificationSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewS3BucketNotificationDeserializer(),
+		factory,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s *S3BucketNotificationSupplier) Resources() ([]resource.Resource, error) {
@@ -28,7 +37,7 @@ func (s *S3BucketNotificationSupplier) Resources() ([]resource.Resource, error) 
 	client := s.factory.GetS3Client(nil)
 	response, err := client.ListBuckets(input)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, aws.AwsS3BucketNotificationResourceType, aws.AwsS3BucketResourceType)
 	}
 
 	for _, bucket := range response.Buckets {
@@ -74,6 +83,8 @@ func (s *S3BucketNotificationSupplier) listBucketNotificationConfiguration(name,
 			},
 		})
 		if err != nil {
+			logrus.Errorf("ERROOORRR %s", reflect.TypeOf(err))
+
 			return cty.NilVal, err
 		}
 		return *s3BucketPolicy, err

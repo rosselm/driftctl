@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -22,11 +23,16 @@ type IamRolePolicyAttachmentSupplier struct {
 }
 
 func NewIamRolePolicyAttachmentSupplier(runner *parallel.ParallelRunner, client iamiface.IAMAPI) *IamRolePolicyAttachmentSupplier {
-	return &IamRolePolicyAttachmentSupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewIamRolePolicyAttachmentDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &IamRolePolicyAttachmentSupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewIamRolePolicyAttachmentDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s IamRolePolicyAttachmentSupplier) Resources() ([]resource.Resource, error) {
-	roles, err := listIamRoles(s.client)
+	roles, err := listIamRoles(s.client, resourceaws.AwsIamRolePolicyAttachmentResourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +100,7 @@ func listIamRolePoliciesAttachment(roleName string, client iamiface.IAMAPI) ([]*
 		return !lastPage
 	})
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, resourceaws.AwsIamRolePolicyAttachmentResourceType, resourceaws.AwsIamRolePolicyResourceType)
 	}
 	return attachedRolePolicies, nil
 }

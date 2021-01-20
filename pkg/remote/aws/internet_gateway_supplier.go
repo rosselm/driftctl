@@ -32,7 +32,7 @@ func NewInternetGatewaySupplier(runner *parallel.ParallelRunner, client ec2iface
 func (s InternetGatewaySupplier) Resources() ([]resource.Resource, error) {
 	internetGateways, err := listInternetGateways(s.client)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, aws.AwsInternetGatewayResourceType, aws.AwsInternetGatewayResourceType)
 	}
 
 	for _, internetGateway := range internetGateways {

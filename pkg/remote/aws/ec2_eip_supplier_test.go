@@ -4,7 +4,13 @@ import (
 	"context"
 	"testing"
 
+	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	awsdeserializer "github.com/cloudskiff/driftctl/pkg/resource/aws/deserializer"
 
 	"github.com/cloudskiff/driftctl/test/goldenfile"
@@ -23,6 +29,7 @@ func TestEC2EipSupplier_Resources(t *testing.T) {
 		test      string
 		dirName   string
 		addresses []*ec2.Address
+		listError error
 		err       error
 	}{
 		{
@@ -44,6 +51,12 @@ func TestEC2EipSupplier_Resources(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			test:      "Cannot list eips",
+			dirName:   "ec2_eip_empty",
+			listError: awserr.NewRequestFailure(nil, 403, ""),
+			err:       NewBaseListError(awserr.NewRequestFailure(nil, 403, ""), resourceaws.AwsEipResourceType, resourceaws.AwsEipResourceType),
+		},
 	}
 	for _, tt := range tests {
 		shouldUpdate := tt.dirName == *goldenfile.Update
@@ -60,16 +73,18 @@ func TestEC2EipSupplier_Resources(t *testing.T) {
 		t.Run(tt.test, func(t *testing.T) {
 			provider := mocks.NewMockedGoldenTFProvider(tt.dirName, terraform.Provider(terraform.AWS), shouldUpdate)
 			deserializer := awsdeserializer.NewEC2EipDeserializer()
+			client := mocks.NewMockAWSEC2EipClient(tt.addresses)
+			if tt.listError != nil {
+				client = mocks.NewMockAWSEC2ErrorClient(tt.listError)
+			}
 			s := &EC2EipSupplier{
 				provider,
 				deserializer,
-				mocks.NewMockAWSEC2EipClient(tt.addresses),
+				client,
 				terraform.NewParallelResourceReader(parallel.NewParallelRunner(context.TODO(), 10)),
 			}
 			got, err := s.Resources()
-			if tt.err != err {
-				t.Errorf("Expected error %+v got %+v", tt.err, err)
-			}
+			assert.Equal(t, tt.err, err)
 
 			test.CtyTestDiff(got, tt.dirName, provider, deserializer, shouldUpdate, t)
 		})

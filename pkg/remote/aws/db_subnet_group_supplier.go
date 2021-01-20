@@ -45,8 +45,7 @@ func (s DBSubnetGroupSupplier) Resources() ([]resource.Resource, error) {
 	)
 
 	if err != nil {
-		logrus.Error(err)
-		return nil, err
+		return nil, NewBaseListError(err, aws.AwsDbSubnetGroupResourceType, aws.AwsDbSubnetGroupResourceType)
 	}
 
 	for _, subnetGroup := range subnetGroups {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	awsdeserializer "github.com/cloudskiff/driftctl/pkg/resource/aws/deserializer"
 
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -25,11 +26,16 @@ type IamRolePolicySupplier struct {
 }
 
 func NewIamRolePolicySupplier(runner *parallel.ParallelRunner, client iamiface.IAMAPI) *IamRolePolicySupplier {
-	return &IamRolePolicySupplier{terraform.Provider(terraform.AWS), awsdeserializer.NewIamRolePolicyDeserializer(), client, terraform.NewParallelResourceReader(runner)}
+	return &IamRolePolicySupplier{
+		terraform.Provider(terraform.AWS),
+		awsdeserializer.NewIamRolePolicyDeserializer(),
+		client,
+		terraform.NewParallelResourceReader(runner),
+	}
 }
 
 func (s IamRolePolicySupplier) Resources() ([]resource.Resource, error) {
-	policies, err := listIamRolePolicies(s.client)
+	policies, err := listIamRolePolicies(s.client, resourceaws.AwsIamRolePolicyResourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +68,8 @@ func (s IamRolePolicySupplier) readRes(name string) (cty.Value, error) {
 	return *res, nil
 }
 
-func listIamRolePolicies(client iamiface.IAMAPI) ([]string, error) {
-	roles, err := listIamRoles(client)
+func listIamRolePolicies(client iamiface.IAMAPI, supplierType string) ([]string, error) {
+	roles, err := listIamRoles(client, supplierType)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +94,7 @@ func listIamRolePolicies(client iamiface.IAMAPI) ([]string, error) {
 			return !lastPage
 		})
 		if err != nil {
-			return nil, err
+			return nil, NewBaseListError(err, supplierType, resourceaws.AwsIamRoleResourceType)
 		}
 	}
 

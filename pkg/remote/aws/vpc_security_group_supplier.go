@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/cloudskiff/driftctl/pkg/parallel"
+
 	"github.com/cloudskiff/driftctl/pkg/remote/deserializer"
 	"github.com/cloudskiff/driftctl/pkg/resource"
 	resourceaws "github.com/cloudskiff/driftctl/pkg/resource/aws"
@@ -38,7 +39,7 @@ func NewVPCSecurityGroupSupplier(runner *parallel.ParallelRunner, client ec2ifac
 func (s VPCSecurityGroupSupplier) Resources() ([]resource.Resource, error) {
 	securityGroups, defaultSecurityGroups, err := listSecurityGroups(s.client)
 	if err != nil {
-		return nil, err
+		return nil, NewBaseListError(err, resourceaws.AwsSecurityGroupResourceType, resourceaws.AwsSecurityGroupResourceType)
 	}
 
 	for _, item := range securityGroups {
