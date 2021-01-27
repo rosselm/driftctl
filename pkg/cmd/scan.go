@@ -11,6 +11,7 @@ import (
 	"github.com/cloudskiff/driftctl/pkg"
 	"github.com/cloudskiff/driftctl/pkg/alerter"
 	"github.com/cloudskiff/driftctl/pkg/cmd/scan/output"
+	"github.com/cloudskiff/driftctl/pkg/errors/cmd/scan"
 	"github.com/cloudskiff/driftctl/pkg/filter"
 	"github.com/cloudskiff/driftctl/pkg/iac/config"
 	"github.com/cloudskiff/driftctl/pkg/iac/supplier"
@@ -157,8 +158,17 @@ func scanRun(opts *ScanOptions) error {
 	if analysis == nil {
 		return errors.New("unable to run driftctl")
 	}
-	out := output.GetOutput(opts.Output)
-	return out.Write(analysis)
+
+	err = output.GetOutput(opts.Output).Write(analysis)
+	if err != nil {
+		return err
+	}
+
+	if !analysis.IsSync() {
+		return scan.InfrastructureNotInSync{}
+	}
+
+	return nil
 }
 
 func parseFromFlag(from []string) ([]config.SupplierConfig, error) {
